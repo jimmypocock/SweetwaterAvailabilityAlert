@@ -29,7 +29,7 @@ Globals:
   Function:
     Timeout: 60
     MemorySize: 256
-    Runtime: python3.11
+    Runtime: python3.12
     Environment:
       Variables:
         PRODUCT_URL: !Ref ProductUrl
@@ -41,7 +41,7 @@ Resources:
   ProductAvailabilityFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: ProductAvailabilityChecker
+      FunctionName: SweetwaterAvailabilityChecker
       CodeUri: src/
       Handler: lambda_function.lambda_handler
       Description: Checks product availability and sends notifications
@@ -59,8 +59,8 @@ Resources:
         ScheduledCheck:
           Type: Schedule
           Properties:
-            Name: ProductAvailabilityCheck
-            Description: Check product availability every hour
+            Name: SweetwaterAvailabilityCheck
+            Description: Check Sweetwaterproduct availability every hour
             Schedule: rate(1 hour)
             Enabled: true
       Layers:
@@ -69,14 +69,14 @@ Resources:
   DependenciesLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: ProductScraperDependencies
+      LayerName: SweetwaterScraperDependencies
       Description: Dependencies for product scraper
       ContentUri: dependencies/
       CompatibleRuntimes:
-        - python3.11
+        - python3.12
       RetentionPolicy: Delete
     Metadata:
-      BuildMethod: python3.11
+      BuildMethod: python3.12
 
   # CloudWatch Log Group
   ProductAvailabilityLogGroup:

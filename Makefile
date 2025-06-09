@@ -1,4 +1,4 @@
-.PHONY: help build deploy test clean logs invoke setup verify-ses
+.PHONY: help build deploy test clean logs invoke setup login verify-ses check-ses
 
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
@@ -16,6 +16,7 @@ help:
 	@echo "  make invoke      - Manually invoke the Lambda function"
 	@echo "  make logs        - Tail CloudWatch logs"
 	@echo "  make clean       - Clean build artifacts"
+	@echo "  make login       - Login to AWS SSO (if using SSO)"
 	@echo "  make verify-ses  - Verify SES email addresses"
 
 # Set up project structure
@@ -67,12 +68,12 @@ invoke:
 	@if [ -n "$$AWS_PROFILE" ]; then \
 		aws lambda invoke \
 			--profile $$AWS_PROFILE \
-			--function-name ProductAvailabilityChecker \
+			--function-name SweetwaterAvailabilityChecker \
 			--payload '{}' \
 			response.json; \
 	else \
 		aws lambda invoke \
-			--function-name ProductAvailabilityChecker \
+			--function-name SweetwaterAvailabilityChecker \
 			--payload '{}' \
 			response.json; \
 	fi
@@ -82,7 +83,11 @@ invoke:
 # Tail CloudWatch logs
 logs:
 	@echo "Tailing CloudWatch logs..."
-	sam logs -n ProductAvailabilityChecker --tail
+	@if [ -n "$$AWS_PROFILE" ]; then \
+		aws logs tail /aws/lambda/SweetwaterAvailabilityChecker --profile $$AWS_PROFILE --follow; \
+	else \
+		aws logs tail /aws/lambda/SweetwaterAvailabilityChecker --follow; \
+	fi
 
 # Clean build artifacts
 clean:
@@ -95,21 +100,66 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	@echo "Clean complete!"
 
+# Login to AWS SSO
+login:
+	@if [ -n "$$AWS_PROFILE" ]; then \
+		echo "Logging in to AWS SSO profile: $$AWS_PROFILE"; \
+		aws sso login --profile $$AWS_PROFILE; \
+	else \
+		echo "No AWS_PROFILE set. Please set it in .env or export it."; \
+		echo "Example: echo 'AWS_PROFILE=your-profile-name' > .env"; \
+		exit 1; \
+	fi
+
 # Verify SES email addresses
 verify-ses:
 	@echo "Enter sender email address:"
 	@read sender_email; \
-	aws ses verify-email-identity --email-address $$sender_email; \
-	echo "Verification email sent to $$sender_email"
+	if [ -n "$$AWS_PROFILE" ]; then \
+		if aws ses verify-email-identity --profile $$AWS_PROFILE --email-address $$sender_email; then \
+			echo "✓ Verification email sent to $$sender_email"; \
+		else \
+			echo "✗ Failed to send verification to $$sender_email"; \
+			echo "  Please check your AWS credentials or run: aws sso login --profile $$AWS_PROFILE"; \
+			exit 1; \
+		fi; \
+	else \
+		if aws ses verify-email-identity --email-address $$sender_email; then \
+			echo "✓ Verification email sent to $$sender_email"; \
+		else \
+			echo "✗ Failed to send verification to $$sender_email"; \
+			echo "  Please check your AWS credentials"; \
+			exit 1; \
+		fi; \
+	fi
 	@echo "Enter recipient email address:"
 	@read recipient_email; \
-	aws ses verify-email-identity --email-address $$recipient_email; \
-	echo "Verification email sent to $$recipient_email"
+	if [ -n "$$AWS_PROFILE" ]; then \
+		if aws ses verify-email-identity --profile $$AWS_PROFILE --email-address $$recipient_email; then \
+			echo "✓ Verification email sent to $$recipient_email"; \
+		else \
+			echo "✗ Failed to send verification to $$recipient_email"; \
+			echo "  Please check your AWS credentials or run: aws sso login --profile $$AWS_PROFILE"; \
+			exit 1; \
+		fi; \
+	else \
+		if aws ses verify-email-identity --email-address $$recipient_email; then \
+			echo "✓ Verification email sent to $$recipient_email"; \
+		else \
+			echo "✗ Failed to send verification to $$recipient_email"; \
+			echo "  Please check your AWS credentials"; \
+			exit 1; \
+		fi; \
+	fi
 
 # Check SES verification status
 check-ses:
 	@echo "Verified email addresses:"
-	@aws ses list-identities --identity-type EmailAddress
+	@if [ -n "$$AWS_PROFILE" ]; then \
+		aws ses list-identities --profile $$AWS_PROFILE --identity-type EmailAddress; \
+	else \
+		aws ses list-identities --identity-type EmailAddress; \
+	fi
 
 # Update environment variables
 update-env:
@@ -118,7 +168,7 @@ update-env:
 	@read product_url; \
 	if [ -n "$$product_url" ]; then \
 		aws lambda update-function-configuration \
-			--function-name ProductAvailabilityChecker \
+			--function-name SweetwaterAvailabilityChecker \
 			--environment Variables="{PRODUCT_URL='$$product_url'}"; \
 	fi
 
@@ -126,14 +176,14 @@ update-env:
 enable-notifications:
 	@echo "Enabling notifications..."
 	aws lambda update-function-configuration \
-		--function-name ProductAvailabilityChecker \
+		--function-name SweetwaterAvailabilityChecker \
 		--environment Variables="{SKIP_NOTIFICATION='false'}"
 
 # Disable notifications
 disable-notifications:
 	@echo "Disabling notifications..."
 	aws lambda update-function-configuration \
-		--function-name ProductAvailabilityChecker \
+		--function-name SweetwaterAvailabilityChecker \
 		--environment Variables="{SKIP_NOTIFICATION='true'}"
 
 # Get stack info

@@ -19,7 +19,7 @@ This application checks a Sweetwater product URL every hour and sends you an ema
 
 ## Architecture
 
-- **AWS Lambda**: Runs the scraping logic (Python 3.11)
+- **AWS Lambda**: Runs the scraping logic (Python 3.12)
 - **Amazon EventBridge**: Triggers the Lambda function every hour
 - **Amazon SES**: Sends email notifications
 - **CloudScraper**: Bypasses anti-bot protections
@@ -30,7 +30,7 @@ This application checks a Sweetwater product URL every hour and sends you an ema
 1. **AWS Account** with appropriate permissions
 2. **AWS CLI** installed and configured
 3. **AWS SAM CLI** installed
-4. **Python 3.11** installed locally
+4. **Python 3.12** installed locally
 5. **Git** (to clone this repository)
 
 ### Installing Prerequisites
@@ -183,7 +183,7 @@ The Lambda function uses these environment variables:
 ```bash
 # Update environment variables
 aws lambda update-function-configuration \
-  --function-name ProductAvailabilityChecker \
+  --function-name SweetwaterAvailabilityChecker \
   --environment Variables="{PRODUCT_URL='https://new-url',SENDER_EMAIL='sender@email.com',RECIPIENT_EMAIL='recipient@email.com'}"
 
 # Enable/disable notifications
@@ -253,7 +253,7 @@ Key features:
 make logs
 
 # Or with SAM
-sam logs -n ProductAvailabilityChecker --tail
+sam logs -n SweetwaterAvailabilityChecker --tail
 ```
 
 ### Set Up Error Alerts
@@ -271,13 +271,13 @@ aws sns subscribe \
 
 ```bash
 # Recent Lambda invocations
-aws lambda list-functions --query "Functions[?FunctionName=='ProductAvailabilityChecker']"
+aws lambda list-functions --query "Functions[?FunctionName=='SweetwaterAvailabilityChecker']"
 
 # CloudWatch metrics
 aws cloudwatch get-metric-statistics \
   --namespace AWS/Lambda \
   --metric-name Invocations \
-  --dimensions Name=FunctionName,Value=ProductAvailabilityChecker \
+  --dimensions Name=FunctionName,Value=SweetwaterAvailabilityChecker \
   --statistics Sum \
   --start-time 2024-01-01T00:00:00Z \
   --end-time 2024-01-31T23:59:59Z \
@@ -307,7 +307,7 @@ Running within AWS free tier limits:
 
 2. Check Lambda permissions:
    ```bash
-   aws lambda get-policy --function-name ProductAvailabilityChecker
+   aws lambda get-policy --function-name SweetwaterAvailabilityChecker
    ```
 
 ### Emails Not Sending
@@ -382,8 +382,10 @@ make test               # Run local tests
 make invoke             # Manually trigger Lambda
 make logs               # View CloudWatch logs
 make clean              # Clean build artifacts
+make login              # Login to AWS SSO (if using SSO)
 make verify-ses         # Verify SES email addresses
 make check-ses          # Check SES verification status
+make update-env         # Update Lambda environment variables
 make enable-notifications  # Enable email notifications
 make disable-notifications # Disable notifications (testing)
 make info               # Show stack information

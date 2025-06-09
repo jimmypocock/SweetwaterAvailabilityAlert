@@ -33,7 +33,20 @@ def check_product_availability(url, max_retries=3):
             )
             
             logger.info(f"Fetching URL: {url} (attempt {attempt + 1}/{max_retries})")
-            response = scraper.get(url, timeout=30)
+            logger.info(f"Using CloudScraper version: {cloudscraper.__version__ if hasattr(cloudscraper, '__version__') else 'unknown'}")
+            
+            # Add additional headers that might help
+            headers = {
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1'
+            }
+            
+            response = scraper.get(url, headers=headers, timeout=30)
+            logger.info(f"Response status: {response.status_code}")
             response.raise_for_status()
             
             if response.status_code == 200:
@@ -41,6 +54,29 @@ def check_product_availability(url, max_retries=3):
                 
         except Exception as e:
             logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
+            logger.warning(f"Error type: {type(e).__name__}")
+            
+            # If CloudScraper fails in Lambda, try a simpler approach
+            if "403" in str(e) and attempt == max_retries - 1:
+                logger.info("CloudScraper failed with 403, trying simple requests as fallback")
+                try:
+                    import requests
+                    simple_headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.5',
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1',
+                        'Cache-Control': 'max-age=0'
+                    }
+                    response = requests.get(url, headers=simple_headers, timeout=30)
+                    if response.status_code == 200:
+                        logger.info("Simple requests worked! Using this response.")
+                        break
+                except:
+                    pass  # Fall through to original error
+            
             if attempt < max_retries - 1:
                 time.sleep(5 * (attempt + 1))  # Exponential backoff
                 continue

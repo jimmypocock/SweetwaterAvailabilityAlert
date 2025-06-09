@@ -9,6 +9,7 @@ This is an AWS serverless application that monitors product availability on Swee
 ## Architecture
 
 The application consists of:
+
 - **Lambda Function** (`src/lambda_function.py`): Scrapes product pages and sends notifications
 - **EventBridge Rule**: Triggers the Lambda function hourly
 - **SES Integration**: Sends email notifications when products become available
@@ -17,6 +18,7 @@ The application consists of:
 ## Development Commands
 
 ### Setup and Dependencies
+
 ```bash
 # Set up project structure and install dependencies
 make setup
@@ -26,6 +28,7 @@ cd dependencies && pip install -r requirements.txt -t python/
 ```
 
 ### Build and Deploy
+
 ```bash
 # Build the SAM application
 make build
@@ -41,6 +44,7 @@ sam deploy
 ```
 
 ### Testing
+
 ```bash
 # Run local test script (interactive testing tool)
 python test_scraper.py
@@ -50,17 +54,19 @@ sam local invoke ProductAvailabilityFunction
 
 # Invoke deployed function
 make invoke
-aws lambda invoke --function-name ProductAvailabilityChecker output.json
+aws lambda invoke --function-name SweetwaterAvailabilityChecker output.json
 ```
 
 ### Monitoring and Logs
+
 ```bash
 # Tail CloudWatch logs
 make logs
-sam logs -n ProductAvailabilityChecker --tail
+sam logs -n SweetwaterAvailabilityChecker --tail
 ```
 
 ### Email Configuration
+
 ```bash
 # Verify SES email addresses
 make verify-ses
@@ -74,6 +80,7 @@ make disable-notifications
 ```
 
 ### Maintenance
+
 ```bash
 # Clean build artifacts
 make clean
@@ -88,6 +95,7 @@ make delete
 ## Key Implementation Details
 
 ### Scraping Logic (src/lambda_function.py)
+
 - Uses CloudScraper to bypass anti-bot protections (replaced requests library)
 - The `check_product_availability()` function looks for Sweetwater-specific patterns:
   - `<component>` tags with "Add to Cart" text
@@ -99,13 +107,16 @@ make delete
 - Returns availability status and product information
 
 ### Environment Variables
+
 - `PRODUCT_URL`: The Sweetwater product URL to monitor
 - `SENDER_EMAIL`: Email address to send from (must be SES verified)
 - `RECIPIENT_EMAIL`: Email address to receive notifications
 - `SKIP_NOTIFICATION`: Set to "true" to test without sending emails
 
 ### Testing Approach
+
 The `test_scraper.py` script provides an interactive tool for:
+
 1. Testing scraping with default or custom URLs
 2. Testing email notifications (dry run)
 3. Analyzing HTML structure of product pages
