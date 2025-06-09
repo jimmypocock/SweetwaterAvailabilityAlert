@@ -1,0 +1,129 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Product Availability Scraper - Checks product availability and
+  sends notifications
+
+Parameters:
+  ProductUrl:
+    Type: String
+    Description: URL of the product to monitor
+    Default: https://www.sweetwater.com/store/detail/TAG3CSDB--yamaha-tag3-c-transacoustic-dreadnought-acoustic-electric-guitar-sand-burst
+
+  SenderEmail:
+    Type: String
+    Description: Email address to send notifications from (must be verified in SES)
+
+  RecipientEmail:
+    Type: String
+    Description: Email address to receive notifications
+
+  SkipNotification:
+    Type: String
+    Description: Skip sending notifications (for testing)
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+
+Globals:
+  Function:
+    Timeout: 60
+    MemorySize: 256
+    Runtime: python3.11
+    Environment:
+      Variables:
+        PRODUCT_URL: !Ref ProductUrl
+        SENDER_EMAIL: !Ref SenderEmail
+        RECIPIENT_EMAIL: !Ref RecipientEmail
+        SKIP_NOTIFICATION: !Ref SkipNotification
+
+Resources:
+  ProductAvailabilityFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ProductAvailabilityChecker
+      CodeUri: src/
+      Handler: lambda_function.lambda_handler
+      Description: Checks product availability and sends notifications
+      Policies:
+        - SESCrudPolicy:
+            IdentityName: !Ref SenderEmail
+        - Statement:
+            - Sid: SESSendEmail
+              Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: '*'
+      Events:
+        ScheduledCheck:
+          Type: Schedule
+          Properties:
+            Name: ProductAvailabilityCheck
+            Description: Check product availability every hour
+            Schedule: rate(1 hour)
+            Enabled: true
+      Layers:
+        - !Ref DependenciesLayer
+
+  DependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: ProductScraperDependencies
+      Description: Dependencies for product scraper
+      ContentUri: dependencies/
+      CompatibleRuntimes:
+        - python3.11
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.11
+
+  # CloudWatch Log Group
+  ProductAvailabilityLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ProductAvailabilityFunction}
+      RetentionInDays: 30
+
+  # SNS Topic for error notifications (optional)
+  ErrorTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ProductScraperErrors
+      DisplayName: Product Scraper Error Notifications
+
+  # CloudWatch Alarm for function errors
+  FunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ProductScraperFunctionErrors
+      AlarmDescription: Alert when the product scraper function has errors
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ProductAvailabilityFunction
+      AlarmActions:
+        - !Ref ErrorTopic
+
+Outputs:
+  FunctionArn:
+    Description: ARN of the Product Availability Function
+    Value: !GetAtt ProductAvailabilityFunction.Arn
+
+  FunctionName:
+    Description: Name of the Product Availability Function
+    Value: !Ref ProductAvailabilityFunction
+
+  EventRuleName:
+    Description: Name of the EventBridge rule
+    Value: ProductAvailabilityCheck
+
+  ErrorTopicArn:
+    Description: ARN of the error notification topic
+    Value: !Ref ErrorTopic

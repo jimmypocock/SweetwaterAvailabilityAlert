@@ -1,0 +1,36 @@
+# Environment variables
+.env
+.env.*
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+packaged.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+dependencies/python/
+
+# Testing outputs
+response.json
+output.json
+test_results.json
+page_structure.html
+sweetwater_*.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
