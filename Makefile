@@ -175,16 +175,56 @@ update-env:
 # Enable notifications
 enable-notifications:
 	@echo "Enabling notifications..."
-	aws lambda update-function-configuration \
-		--function-name SweetwaterAvailabilityChecker \
-		--environment Variables="{SKIP_NOTIFICATION='false'}"
+	@if [ -n "$$AWS_PROFILE" ]; then \
+		aws lambda get-function-configuration \
+			--profile $$AWS_PROFILE \
+			--function-name SweetwaterAvailabilityChecker \
+			--query 'Environment.Variables' \
+			--output json > /tmp/env_vars.json; \
+		python -c "import json; vars=json.load(open('/tmp/env_vars.json')); vars['SKIP_NOTIFICATION']='false'; print(json.dumps(vars))" > /tmp/new_env_vars.json; \
+		aws lambda update-function-configuration \
+			--profile $$AWS_PROFILE \
+			--function-name SweetwaterAvailabilityChecker \
+			--environment Variables=file:///tmp/new_env_vars.json; \
+	else \
+		aws lambda get-function-configuration \
+			--function-name SweetwaterAvailabilityChecker \
+			--query 'Environment.Variables' \
+			--output json > /tmp/env_vars.json; \
+		python -c "import json; vars=json.load(open('/tmp/env_vars.json')); vars['SKIP_NOTIFICATION']='false'; print(json.dumps(vars))" > /tmp/new_env_vars.json; \
+		aws lambda update-function-configuration \
+			--function-name SweetwaterAvailabilityChecker \
+			--environment Variables=file:///tmp/new_env_vars.json; \
+	fi
+	@rm -f /tmp/env_vars.json /tmp/new_env_vars.json
+	@echo "✅ Notifications enabled!"
 
 # Disable notifications
 disable-notifications:
 	@echo "Disabling notifications..."
-	aws lambda update-function-configuration \
-		--function-name SweetwaterAvailabilityChecker \
-		--environment Variables="{SKIP_NOTIFICATION='true'}"
+	@if [ -n "$$AWS_PROFILE" ]; then \
+		aws lambda get-function-configuration \
+			--profile $$AWS_PROFILE \
+			--function-name SweetwaterAvailabilityChecker \
+			--query 'Environment.Variables' \
+			--output json > /tmp/env_vars.json; \
+		python -c "import json; vars=json.load(open('/tmp/env_vars.json')); vars['SKIP_NOTIFICATION']='true'; print(json.dumps(vars))" > /tmp/new_env_vars.json; \
+		aws lambda update-function-configuration \
+			--profile $$AWS_PROFILE \
+			--function-name SweetwaterAvailabilityChecker \
+			--environment Variables=file:///tmp/new_env_vars.json; \
+	else \
+		aws lambda get-function-configuration \
+			--function-name SweetwaterAvailabilityChecker \
+			--query 'Environment.Variables' \
+			--output json > /tmp/env_vars.json; \
+		python -c "import json; vars=json.load(open('/tmp/env_vars.json')); vars['SKIP_NOTIFICATION']='true'; print(json.dumps(vars))" > /tmp/new_env_vars.json; \
+		aws lambda update-function-configuration \
+			--function-name SweetwaterAvailabilityChecker \
+			--environment Variables=file:///tmp/new_env_vars.json; \
+	fi
+	@rm -f /tmp/env_vars.json /tmp/new_env_vars.json
+	@echo "✅ Notifications disabled!"
 
 # Get stack info
 info:
