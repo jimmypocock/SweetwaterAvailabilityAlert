@@ -40,6 +40,8 @@ build:
 # Deploy the application
 deploy: build
 	@echo "Deploying application..."
+	@echo "Available check intervals: 1, 6, 12, 24, or 48 hours"
+	@echo "You'll be prompted for the interval during deployment"
 	@if [ -n "$$AWS_PROFILE" ]; then \
 		echo "Using AWS Profile: $$AWS_PROFILE"; \
 		sam deploy --guided --profile $$AWS_PROFILE; \

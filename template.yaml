@@ -25,6 +25,20 @@ Parameters:
       - 'true'
       - 'false'
 
+  CheckIntervalHours:
+    Type: Number
+    Description: How often to check product availability (in hours)
+    Default: 1
+    AllowedValues:
+      - 1
+      - 6
+      - 12
+      - 24
+      - 48
+
+Conditions:
+  IsOneHour: !Equals [!Ref CheckIntervalHours, 1]
+
 Globals:
   Function:
     Timeout: 60
@@ -61,7 +75,10 @@ Resources:
           Properties:
             Name: SweetwaterAvailabilityCheck
             Description: Check Sweetwaterproduct availability every hour
-            Schedule: rate(1 hour)
+            Schedule: !Sub 
+              - 'rate(${Hours} hour${Plural})'
+              - Hours: !Ref CheckIntervalHours
+                Plural: !If [IsOneHour, '', 's']
             Enabled: true
       Layers:
         - !Ref DependenciesLayer
